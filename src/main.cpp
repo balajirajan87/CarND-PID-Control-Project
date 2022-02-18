@@ -8,7 +8,7 @@
 // for convenience
 using nlohmann::json;
 using std::string;
-
+using namespace std;
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
@@ -37,7 +37,7 @@ int main() {
   /**
    * TODO: Initialize the pid variable.
    */
-  pid.Init(1.0, 0.0, 40.0);
+  pid.Init(0.5, 0.1, 10.0, 0.2, 0.01, 0.0);
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -58,21 +58,25 @@ int main() {
           double angle = std::stod(j[1]["steering_angle"].get<string>());
           double steer_value;
             double Limit_Steer_Angle = 57.2958; // --> 1 rad
+            double tar_spd = pid.calc_tar(20, speed);           // --> mph
+            double err_spd = tar_spd - speed;
+            double throttle_value;
           /**
            * TODO: Calculate steering value here, remember the steering value is
            *   [-1, 1].
            * NOTE: Feel free to play around with the throttle and speed.
            *   Maybe use another PID controller to control the speed!
            */
-            pid.UpdateError(cte,deg2rad(angle));
-            steer_value = std::max(std::min(pid.TotalError(),deg2rad(Limit_Steer_Angle)),deg2rad(-Limit_Steer_Angle));
+            pid.UpdateError(cte,err_spd);
+            steer_value = std::max(std::min(pid.TotalError()[0],deg2rad(Limit_Steer_Angle)),deg2rad(-Limit_Steer_Angle));
+            throttle_value = pid.TotalError()[1];
           // DEBUG
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
                     << " Steering Angle in Degrees: " << angle << std::endl;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["throttle"] = throttle_value;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
