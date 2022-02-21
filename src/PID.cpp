@@ -30,6 +30,8 @@ void PID::Init(double Kp_, double Ki_, double Kd_, double Kp_Spd_, double Ki_Spd
     cte_acc = 0.0;
     total_err = 0.0;
     is_initialized = true;
+    is_traj_initialized = false;
+    cte_mod = 0.0;
 }
 
 void PID::UpdateError(double cte, double err_spd) {
@@ -66,10 +68,29 @@ vector<double> PID::TotalError() {
 
 double PID::calc_tar(double tar_speed, double act_spd){
     double mod_spd;
-    double kp = 0.1;
+    double kp = 0.05;
     double tar_spd_ = tar_speed / 2.24;
     double act_spd_ = act_spd / 2.24;
     
-    mod_spd = act_spd_ + fmax(fmin(kp * (tar_spd_ - act_spd_), 1.0), -1.0);
+    mod_spd = act_spd_ + fmax(fmin(kp * (tar_spd_ - act_spd_), 0.5), -0.5);
     return mod_spd * 2.24;
+}
+
+double PID::calc_traj(double tar_speed){
+    if (!is_traj_initialized){
+        mod_speed = 0.0;
+        mod_accel = 0.0;
+        is_traj_initialized = true;
+    }
+    double kp_speed = 0.05;
+    double kp_accel = 0.05;
+    double tar_spd_ = tar_speed / 2.24;
+    
+    double tar_accel_raw = fmax(fmin(kp_speed * (tar_spd_ - mod_speed), 0.5), -0.5);
+    double tar_jerk_raw = fmax(fmin(kp_accel * (tar_accel_raw - mod_accel), 0.1), -0.1);
+    //mod_speed = act_spd_ + fmax(fmin(kp * (tar_spd_ - act_spd_), 1.0), -1.0);
+    //intergrate the components:
+    mod_accel = mod_accel + tar_jerk_raw;
+    mod_speed = mod_speed + mod_accel;
+    return mod_speed * 2.24;
 }

@@ -34,8 +34,11 @@ class PID {
   vector<double> TotalError();
     
     double calc_tar(double tar_speed, double act_spd);
+    double calc_traj(double tar_speed);
     
     bool is_initialized;
+    bool is_traj_initialized;
+    double cte_mod;
 
  private:
   /**
@@ -53,6 +56,7 @@ class PID {
     double cte_acc;
     double err_spd_prev;
     double err_spd_acc;
+    
 
   /**
    * PID Coefficients
@@ -63,6 +67,9 @@ class PID {
     double Kp_Spd;
     double Ki_Spd;
     double Kd_Spd;
+    
+    double mod_speed;
+    double mod_accel;
 };
 
 #endif  // PID_H
