@@ -1,9 +1,10 @@
 #include "PID.h"
 #include <vector>
+#include <iostream>
 /**
  * TODO: Complete the PID class. You may add any additional desired functions.
  */
-
+using namespace std;
 PID::PID() {}
 
 PID::~PID() {}
@@ -31,7 +32,18 @@ void PID::Init(double Kp_, double Ki_, double Kd_, double Kp_Spd_, double Ki_Spd
     total_err = 0.0;
     is_initialized = true;
     is_traj_initialized = false;
+    twiddle_avail = true;
+    first_change = true;
+    second_change = true;
     cte_mod = 0.0;
+    n_iter = 0;
+    max_iter = 4;
+    total_cte = 0.0;
+    error_twiddle = 0.0;
+    p_iterator = 0;
+    best_error = 10000.00;
+    fine_tune_count = 0;
+    tol = 0.0001;
 }
 
 void PID::UpdateError(double cte, double err_spd) {
@@ -86,11 +98,98 @@ double PID::calc_traj(double tar_speed){
     double kp_accel = 0.05;
     double tar_spd_ = tar_speed / 2.24;
     
-    double tar_accel_raw = fmax(fmin(kp_speed * (tar_spd_ - mod_speed), 0.5), -0.5);
-    double tar_jerk_raw = fmax(fmin(kp_accel * (tar_accel_raw - mod_accel), 0.1), -0.1);
+    double tar_accel_raw = fmax(fmin(kp_speed * (tar_spd_ - mod_speed), 0.1), -0.1);
+    double tar_jerk_raw = fmax(fmin(kp_accel * (tar_accel_raw - mod_accel), 0.05), -0.05);
     //mod_speed = act_spd_ + fmax(fmin(kp * (tar_spd_ - act_spd_), 1.0), -1.0);
     //intergrate the components:
     mod_accel = mod_accel + tar_jerk_raw;
     mod_speed = mod_speed + mod_accel;
     return mod_speed * 2.24;
+}
+
+vector<double> PID::twiddle(double p[],double dp[], double cte, double err_spd)
+{
+    vector<double> control_output;
+    if (twiddle_avail == true)
+    {
+        total_cte += pow(cte,2);
+        UpdateError(cte, err_spd);
+        control_output = TotalError();
+        n_iter++;
+        if (n_iter > max_iter)
+        {
+            if (first_change == true)
+            {
+                p[p_iterator] += dp[p_iterator];
+                std::cout << "step change: p[0] p[1] p[2]: " << p[0] << " " << p[1] << " " << p[2] << endl;
+                first_change = false;
+            }
+            else
+            {
+                error_twiddle = total_cte / max_iter;
+                if (error_twiddle < best_error && second_change == true)
+                {
+                    best_error = error_twiddle;
+                    best_p[0] = p[0];
+                    best_p[1] = p[1];
+                    best_p[2] = p[2];
+                    dp[p_iterator] *= 1.5;
+                    fine_tune_count += 1;
+                }
+                else
+                {
+                    if (second_change == true)
+                    {
+                        p[p_iterator] -= 2 * dp[p_iterator];
+                        std::cout << "correction: p[0] p[1] p[2]: " << p[0] << " " << p[1] << " " << p[2] << endl;
+                        second_change = false;
+                    }
+                    else
+                    {
+                        if (error_twiddle < best_error)
+                        {
+                            best_error = error_twiddle;
+                            best_p[0] = p[0];
+                            best_p[1] = p[1];
+                            best_p[2] = p[2];
+                            dp[p_iterator] *= 1.5;
+                            fine_tune_count += 1;
+                        }
+                        else
+                        {
+                            p[p_iterator] += dp[p_iterator];
+                            dp[p_iterator] *= 0.5;
+                            fine_tune_count += 1;
+                        }
+                        std::cout << "fine tune2: p[0] p[1] p[2]: " << p[0] << " " << p[1] << " " << p[2] << endl;
+                    }
+                }
+            }
+            if(fine_tune_count > 0)
+            {
+              p_iterator = p_iterator+1;
+              first_change = true;
+              second_change = true;
+              fine_tune_count = 0;
+            }
+            if(p_iterator == 3)
+            {
+              p_iterator = 0;
+            }
+            total_cte = 0.0;
+            n_iter = 0;
+            double sum_dp = dp[0] + dp[1] + dp[2];
+            std::cout << " sumdp " << sum_dp << endl;
+            if (sum_dp < tol)
+            {
+                twiddle_avail = false;
+            }
+        }
+    }
+    else
+    {
+        UpdateError(cte, err_spd);
+        control_output = TotalError();
+    }
+    return control_output;
 }

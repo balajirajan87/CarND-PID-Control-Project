@@ -37,8 +37,10 @@ int main() {
   /**
    * TODO: Initialize the pid variable.
    */
-  pid.Init(2.0, 0.0, 10.0, 0.5, 0.001, 0.0);
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
+    double p[] = {0.06, 0.00031, 0.6, 0.5, 0.001, 0.0};
+    double dp[] = {0.1, 0.0, 0.1, 0.0, 0.0, 0.0};
+  pid.Init(p[0], p[1], p[2], p[3], p[4], p[5]);
+  h.onMessage([&pid,&p, &dp](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -57,25 +59,29 @@ int main() {
           double speed = std::stod(j[1]["speed"].get<string>());
           double angle = std::stod(j[1]["steering_angle"].get<string>());
           double steer_value;
-            pid.cte_mod += 0.5 * (cte - pid.cte_mod);
+            pid.cte_mod += 1.0 * (cte - pid.cte_mod);
             double Limit_Steer_Angle = 57.2958; // --> 1 rad
             //double tar_spd = pid.calc_tar(30, speed);           // --> mph
-            double tar_spd = pid.calc_traj(10);           // --> mph
+            double tar_spd = pid.calc_traj(30);           // --> mph
             double err_spd = tar_spd - speed;
             double throttle_value;
+            vector<double> control_op;
           /**
            * TODO: Calculate steering value here, remember the steering value is
            *   [-1, 1].
            * NOTE: Feel free to play around with the throttle and speed.
            *   Maybe use another PID controller to control the speed!
            */
-            pid.UpdateError(pid.cte_mod,err_spd);
-            steer_value = std::max(std::min(pid.TotalError()[0],deg2rad(Limit_Steer_Angle)),deg2rad(-Limit_Steer_Angle));
-            throttle_value = fmax(pid.TotalError()[1],0);
+            control_op = pid.twiddle(p, dp, pid.cte_mod, err_spd);
+            //pid.UpdateError(pid.cte_mod,err_spd);
+            steer_value = std::max(std::min(control_op[0],deg2rad(Limit_Steer_Angle)),deg2rad(-Limit_Steer_Angle));
+            throttle_value = fmax(control_op[1],0);
           // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
-                    << " Steering Angle in Degrees: " << angle << " modified target speed" << tar_spd << " thottle value" << throttle_value << std::endl;
-
+            /*
+          std::cout << "CTE: " << pid.cte_mod << " Steering Value: " << steer_value
+                    << " Steering Angle in Degrees: " << angle << " modified target speed" << tar_spd << " thottle value" << throttle_value << " iter count: " << pid.n_iter <<std::endl;
+             */
+            std::cout << " iter count: " << pid.n_iter <<std::endl;
           json msgJson;
           msgJson["steering_angle"] = steer_value;
           msgJson["throttle"] = throttle_value;
