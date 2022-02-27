@@ -37,8 +37,8 @@ int main() {
   /**
    * TODO: Initialize the pid variable.
    */
-    double p[] = {0.06, 0.00031, 0.6, 0.5, 0.001, 0.0};
-    double dp[] = {0.1, 0.0, 0.1, 0.0, 0.0, 0.0};
+    double p[] = {0.194384, 0.0, 1.84692, 0.5, 0.001, 0.0};
+    double dp[] = {0.01, 0.0, 0.1, 0.0, 0.0, 0.0};
   pid.Init(p[0], p[1], p[2], p[3], p[4], p[5]);
   h.onMessage([&pid,&p, &dp](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {

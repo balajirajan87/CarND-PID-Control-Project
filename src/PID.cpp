@@ -32,18 +32,18 @@ void PID::Init(double Kp_, double Ki_, double Kd_, double Kp_Spd_, double Ki_Spd
     total_err = 0.0;
     is_initialized = true;
     is_traj_initialized = false;
-    twiddle_avail = true;
+    twiddle_avail = false;
     first_change = true;
     second_change = true;
     cte_mod = 0.0;
     n_iter = 0;
-    max_iter = 4;
+    max_iter = 1;
     total_cte = 0.0;
     error_twiddle = 0.0;
     p_iterator = 0;
     best_error = 10000.00;
     fine_tune_count = 0;
-    tol = 0.0001;
+    tol = 0.00001;
 }
 
 void PID::UpdateError(double cte, double err_spd) {
@@ -133,7 +133,7 @@ vector<double> PID::twiddle(double p[],double dp[], double cte, double err_spd)
                     best_p[0] = p[0];
                     best_p[1] = p[1];
                     best_p[2] = p[2];
-                    dp[p_iterator] *= 1.5;
+                    dp[p_iterator] *= 1.1;
                     fine_tune_count += 1;
                 }
                 else
@@ -152,13 +152,13 @@ vector<double> PID::twiddle(double p[],double dp[], double cte, double err_spd)
                             best_p[0] = p[0];
                             best_p[1] = p[1];
                             best_p[2] = p[2];
-                            dp[p_iterator] *= 1.5;
+                            dp[p_iterator] *= 1.1;
                             fine_tune_count += 1;
                         }
                         else
                         {
                             p[p_iterator] += dp[p_iterator];
-                            dp[p_iterator] *= 0.5;
+                            dp[p_iterator] *= 0.9;
                             fine_tune_count += 1;
                         }
                         std::cout << "fine tune2: p[0] p[1] p[2]: " << p[0] << " " << p[1] << " " << p[2] << endl;
